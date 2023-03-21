@@ -1,0 +1,32 @@
+services:
+  blawx:
+    container_name: blawx_server
+    build: https://github.com/Lexpedite/blawx.git#main
+    ports: 
+      - "8000:8000"
+    expose:
+      - 8000
+    networks:
+      - docablawx
+  docassemble:
+    container_name: docassemble_server
+    image: jhpyle/docassemble
+    expose:
+      - 80
+    networks:
+      - docablawx
+    env_file:
+      - .env
+    restart: always
+    stop_grace_period: 6m
+    ports:
+      - "80:80"
+    volumes:
+      - dabackup:/usr/share/docassemble/backup
+
+volumes:
+  dabackup:
+    driver: local
+
+networks:
+  docablawx: {}

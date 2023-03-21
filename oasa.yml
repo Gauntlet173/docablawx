@@ -1,0 +1,88 @@
+metadata:
+  title: Old Age Security Act Demo
+  short title: OASA Demo
+  comment: This is to demonstrate Blawx & Docassemble for DocaCon 2023
+---
+mandatory: true
+code: |
+  import requests
+
+  def interview_request(payload):
+    url = "http://blawx:8000/1/test/generic_eligible/interview/"
+    r = requests.post(url,json=payload)
+    return r.json()
+  
+  def display_tree(tree):
+    output = "<ul>"
+    for entry in tree:
+        if isinstance(entry,list):
+            output += display_tree(entry)
+        elif entry.startswith("The global constraints hold"):
+            break
+        else:
+            output += "<li>" + entry + "</li>"
+    output += "</ul>"
+    return output
+---
+objects:
+  - people: DAList.using(object_type=Individual,complete_attribute="complete")
+---
+code: |
+  people[i].name.first
+  people[i].pensioner
+  people[i].complete = True
+---
+question: |
+  Is there a person?
+yesno: people.there_are_any
+---
+question: |
+  Is there another person?
+yesno: people.there_is_another
+---
+question: |
+  What is the person's name?
+fields:
+  - Name: people[i].name.first
+---
+question: |
+  Was ${ people[i] } a pensioner in July of 1977?
+yesno: people[i].pensioner
+---
+code: |
+  people.gather()
+  payload = {'facts': []}
+  for person in people:
+    new_person_fact = { "from_ontology": False,
+      "type": "true",
+      "category": "person",
+      "object": person.name.first}
+    payload['facts'].append(new_person_fact)
+    if person.pensioner:
+      new_pensioner_fact = {"from_ontology": False, 
+        "type": "true", 
+        "attribute": "pensioner_july", 
+        "object": person.name.first}
+    else:
+      new_pensioner_fact = {"from_ontology": False, 
+        "type": "false", 
+        "attribute": "pensioner_july", 
+        "object": person.name.first}
+    payload['facts'].append(new_pensioner_fact)
+---
+code: |
+  blawx_answers = interview_request(payload)
+---
+mandatory: True
+question: |
+  Eligibility Response
+subquestion: |
+  % if len(blawx_answers['Answers']):
+  % for answer in blawx_answers['Answers']:
+  % for model in answer['Models']:
+  ${ display_tree(model['Tree']) }
+  % endfor
+  % endfor
+  % else:
+  There were no eligible individuals.
+  % endif
